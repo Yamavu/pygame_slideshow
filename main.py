@@ -1,10 +1,11 @@
 import sys
 from typing import Iterator, Tuple
+from argparse import ArgumentParser
 from itertools import cycle
 from pathlib import Path
 
 from pygame import Surface, init as pygame_init, quit as pygame_quit, Rect
-from pygame import QUIT, KEYDOWN, K_ESCAPE
+from pygame import QUIT, KEYDOWN, K_ESCAPE, SRCALPHA
 from pygame.transform import smoothscale
 from pygame.image import load
 from pygame.time import Clock, get_ticks
@@ -12,9 +13,7 @@ from pygame.display import set_mode, flip
 from pygame.event import get as get_events
 
 IMAGE_SUFFIXES = [".jpg", ".png", ".jpeg", ".bmp"]
-SCREEN_SIZE: Tuple[int,int] = (640, 480)
-IMAGE_DISPLAY_TIME: int = 3000
-TRANSITION_DURATION: int = 1000
+
 TARGET = Rect(100,40,400,400)
 TARGET_RATIO = TARGET.width / TARGET.height
 
@@ -47,7 +46,7 @@ def iter_slideshow_images(folder:Path):
     for image_path in images_iter(folder):
         if image_path.suffix.lower() not in IMAGE_SUFFIXES:
             continue
-        target_surface = Surface(TARGET.size, )
+        target_surface = Surface(TARGET.size, flags=SRCALPHA)
         _scaled_image = scale_image(image_path, TARGET)
         _target_rect = _scaled_image.get_rect(center=target_surface.get_rect().center)
         target_surface.blit(_scaled_image, _target_rect)
@@ -55,25 +54,27 @@ def iter_slideshow_images(folder:Path):
         yield target_surface
 
 def draw_background(screen:Surface) -> Surface:
-    screen.fill((255, 255, 0))
-
-def draw_image_on_target(target, img):
-    target.blit(img, dest=TARGET.topleft)
+    screen.fill((128, 32, 192))
 
 def transition_fade(screen:Surface, cur_img:Surface, next_img:Surface, progress:float):
+    def linear(p) -> int:
+        return int(p *  255)
+    def quadratic(p) -> int:
+        return int(p * p * 255)
     _cur_img = cur_img.copy()
-    _cur_img.set_alpha(int((1.0-progress) * 255))
+    _cur_img.set_alpha(linear(1.0-progress))
     _next_img = next_img.copy()
-    _next_img.set_alpha(int(progress * 255))
-    #target.blit(cur_img, dest=TARGET.topleft)
-    draw_image_on_target(screen, _cur_img)
-    #target.blit(_next_img, dest=TARGET.topleft)
-    draw_image_on_target(screen, _next_img)
+    _next_img.set_alpha(linear(progress))
+    screen.blit(_cur_img, dest=TARGET.topleft)
+    screen.blit(_next_img, dest=TARGET.topleft)
 
 def main(folder:Path):
     pygame_init()
+    transition_duration: int = 1000
+    image_display_time: int = 3000
+    screen_size: Tuple[int,int] = (640, 480)
     clock = Clock()
-    screen = set_mode(SCREEN_SIZE)
+    screen = set_mode(screen_size)
     _iter = iter_slideshow_images(folder)
     cur_img = next(_iter, None)
     #current_image = next(image_iter, None)
@@ -91,13 +92,13 @@ def main(folder:Path):
                 running = False
         now = get_ticks()
         if not in_transition and nxt_img and \
-              now - last_switch > IMAGE_DISPLAY_TIME:
+              now - last_switch > image_display_time:
             in_transition = True
             transistion_start = now
             progress = 0.0
         draw_background(screen)
         if in_transition:
-            progress = (now - transistion_start) / TRANSITION_DURATION
+            progress = (now - transistion_start) / transition_duration
             if progress >= 1.0:
                 # End of fade
                 cur_img = nxt_img
@@ -107,12 +108,14 @@ def main(folder:Path):
                 progress = 0.0
             transition_fade(screen, cur_img, nxt_img, progress)
         else:
-            draw_image_on_target(screen, cur_img)
+            screen.blit(cur_img, TARGET.topleft)
         flip()
         clock.tick(60)
     pygame_quit()
     sys.exit()
 
 if __name__ == "__main__":
-    slideshow_folder = Path("img")
-    main(folder=slideshow_folder)
+    p = ArgumentParser()
+    p.add_argument("folder", type=Path, default=Path("img"), nargs="?")
+    args = p.parse_args()
+    main(folder=args.folder)
