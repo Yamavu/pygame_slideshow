@@ -24,7 +24,7 @@ def linear(p) -> int:
 
 def polynomial(p, x) -> int:
     """internal function for polynomial transition"""
-    return int(pow(p,x) * 255)
+    return int(pow(p, x) * 255)
 
 
 def transition_fade(
