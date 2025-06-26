@@ -15,20 +15,23 @@ from pygame.event import get as get_events
 
 from transition import TRANSITION_FUNCTIONS
 
-def images_iter(folder:Path) -> Iterator[Path]:
+
+def images_iter(folder: Path) -> Iterator[Path]:
     """iterate over a directory repeatingly"""
     if not folder.is_dir():
         raise ValueError(f"folder {str(folder)} is no directory")
     return cycle(sorted(folder.iterdir()))
 
-def load_image_to_surface(image_path:Path) -> Surface:
+
+def load_image_to_surface(image_path: Path) -> Surface:
     """load an image to a pygame.Surface"""
     if not image_path.is_file():
         raise ValueError(f"image {str(image_path)} is no file")
     surface = load(image_path).convert_alpha()
     return surface
 
-def _scale_image(image_path:Path, rect:Rect) -> Surface:
+
+def _scale_image(image_path: Path, rect: Rect) -> Surface:
     """scale image to a given size"""
     s = load_image_to_surface(image_path)
     rect_ratio = rect.width / rect.height
@@ -43,44 +46,61 @@ def _scale_image(image_path:Path, rect:Rect) -> Surface:
     print(f"scaling {image_path.stem} from {(_width, _height)} to {_target}")
     return smoothscale(s, _target)
 
-def iter_slideshow_images(folder:Path, target:Rect, image_suffixes:Tuple[str]):
-    """scales an image from directory and center it, returns a transparent pygame.Surface"""
+
+def iter_slideshow_images(
+        folder: Path,
+        target: Rect,
+        image_suffixes: Tuple[str]):
+    """
+    scales an image from directory and center it
+    returns a transparent pygame.Surface
+    """
     for image_path in images_iter(folder):
         if image_path.suffix.lower() not in image_suffixes:
             continue
-        target_surface = Surface(target.size, flags=SRCALPHA)
+        surface = Surface(target.size, flags=SRCALPHA)
         _scaled_image = _scale_image(image_path, target)
-        _target_rect = _scaled_image.get_rect(center=target_surface.get_rect().center)
-        target_surface.blit(_scaled_image, _target_rect)
-        yield target_surface
+        _target_rect = _scaled_image.get_rect(center=surface.get_rect().center)
+        surface.blit(_scaled_image, _target_rect)
+        yield surface
 
-def draw_background(screen:Surface) -> None:
+
+def draw_background(screen: Surface) -> None:
     """draws the background"""
     screen.fill((128, 32, 192))
 
-def draw_foreground(screen:Surface) -> None:
+
+def draw_foreground(screen: Surface) -> None:
     """draws the foreground"""
     pass
 
-def get_transition_function(name:str) -> Callable[[Surface, Surface, Surface, float, Rect],None]:
+
+def get_transition_function(
+    name: str,
+) -> Callable[[Surface, Surface, Surface, float, Rect], None]:
     for k, fun in TRANSITION_FUNCTIONS.items():
         if k.name == name:
             return fun
     raise ValueError(f"transistion_type {name.name} not found")
 
-def main(folder:Path, image_display_time:int, transition_time:int, transition_type:str):
+
+def main(
+        folder: Path,
+        image_display_time: int,
+        transition_time: int,
+        transition_type: str):
     """show a slideshow to a window of a given size"""
     pygame_init()
     transition_function = get_transition_function(transition_type)
-    screen_size: Tuple[int,int] = (640, 480)
-    target = Rect(100,40,400,400)
+    screen_size: Tuple[int, int] = (640, 480)
+    target = Rect(100, 40, 400, 400)
     image_suffixes = (".jpg", ".png", ".jpeg", ".bmp")
-    #target_ratio = target.width / target.height
+    # target_ratio = target.width / target.height
     clock = Clock()
     screen = set_mode(screen_size)
     _iter = iter_slideshow_images(folder, target, image_suffixes)
     cur_img = next(_iter, None)
-    #current_image = next(image_iter, None)
+    # current_image = next(image_iter, None)
     nxt_img = next(_iter, None)
     last_switch = get_ticks()
     running = True
@@ -90,12 +110,12 @@ def main(folder:Path, image_display_time:int, transition_time:int, transition_ty
 
     while running and cur_img:
         for event in get_events():
-            if event.type == QUIT or \
-              (event.type == KEYDOWN and event.key == K_ESCAPE):
+            if event.type == QUIT \
+                    or (event.type == KEYDOWN and event.key == K_ESCAPE):
                 running = False
         now = get_ticks()
-        if not in_transition and nxt_img and \
-              now - last_switch > image_display_time:
+        if not in_transition and nxt_img \
+                and now - last_switch > image_display_time:
             in_transition = True
             transistion_start = now
             progress = 0.0
@@ -105,7 +125,7 @@ def main(folder:Path, image_display_time:int, transition_time:int, transition_ty
             if progress >= 1.0:
                 # End of fade
                 cur_img = nxt_img
-                nxt_img = next(_iter, None) # preload next image
+                nxt_img = next(_iter, None)  # preload next image
                 last_switch = now
                 in_transition = False
                 progress = 0.0
@@ -118,6 +138,7 @@ def main(folder:Path, image_display_time:int, transition_time:int, transition_ty
     pygame_quit()
     sys.exit()
 
+
 if __name__ == "__main__":
     p = ArgumentParser()
     p.add_argument("folder", type=Path, default=Path("img"), nargs="?")
@@ -126,8 +147,8 @@ if __name__ == "__main__":
     p.add_argument("transition_type", type=str, default="fade", nargs="?")
     args = p.parse_args()
     main(
-        folder = args.folder, 
-        image_display_time = int(args.image_display_time * 1000),
-        transition_time = int(args.transition_time * 1000),
-        transition_type = args.transition_type
+        folder=args.folder,
+        image_display_time=int(args.image_display_time * 1000),
+        transition_time=int(args.transition_time * 1000),
+        transition_type=args.transition_type,
     )
