@@ -86,8 +86,8 @@ def get_transition_function(
 
 def main(
         folder: Path,
-        image_display_time: int,
-        transition_time: int,
+        display_ms: int,
+        transition_ms: int,
         transition_type: str):
     """show a slideshow to a window of a given size"""
     pygame_init()
@@ -115,13 +115,13 @@ def main(
                 running = False
         now = get_ticks()
         if not in_transition and nxt_img \
-                and now - last_switch > image_display_time:
+                and now - last_switch > display_ms:
             in_transition = True
             transistion_start = now
             progress = 0.0
         draw_background(screen)
         if in_transition:
-            progress = (now - transistion_start) / transition_time
+            progress = (now - transistion_start) / transition_ms
             if progress >= 1.0:
                 # End of fade
                 cur_img = nxt_img
@@ -144,11 +144,11 @@ if __name__ == "__main__":
     p.add_argument("folder", type=Path, default=Path("img"), nargs="?")
     p.add_argument("image_display_time", type=float, default=4.0, nargs="?")
     p.add_argument("transition_time", type=float, default=1.0, nargs="?")
-    p.add_argument("transition_type", type=str, default="fade", nargs="?")
+    p.add_argument("transition_type", type=str, default="scale_x", nargs="?")
     args = p.parse_args()
     main(
         folder=args.folder,
-        image_display_time=int(args.image_display_time * 1000),
-        transition_time=int(args.transition_time * 1000),
+        display_ms=int(args.image_display_time * 1000),
+        transition_ms=int(args.transition_time * 1000),
         transition_type=args.transition_type,
     )
